@@ -1,74 +1,6 @@
-// Additional JavaScript functions for dashboard
-// This file contains helper functions needed by the dashboard
+// Global functions for SSO System Access
+// These functions are used across multiple pages
 
-// Toggle comparison visibility
-document.addEventListener('DOMContentLoaded', function() {
-    const comparisonToggle = document.getElementById('comparisonToggle');
-    const comparisonTypeContainer = document.getElementById('comparisonTypeContainer');
-    const customDateToggle = document.getElementById('customDateToggle');
-    const periodSelect = document.getElementById('periodSelect');
-    const startDateInput = document.getElementById('startDateInput');
-    const endDateInput = document.getElementById('endDateInput');
-
-    // Handle comparison toggle
-    if (comparisonToggle && comparisonTypeContainer) {
-        comparisonToggle.addEventListener('change', function() {
-            if (this.checked) {
-                comparisonTypeContainer.classList.remove('hidden');
-            } else {
-                comparisonTypeContainer.classList.add('hidden');
-            }
-        });
-    }
-
-    // Handle custom date toggle
-    if (customDateToggle && periodSelect) {
-        customDateToggle.addEventListener('change', function() {
-            if (this.checked) {
-                periodSelect.disabled = true;
-                periodSelect.classList.add('bg-gray-100', 'cursor-not-allowed');
-            } else {
-                periodSelect.disabled = false;
-                periodSelect.classList.remove('bg-gray-100', 'cursor-not-allowed');
-            }
-        });
-    }
-
-    // Set default dates for custom range
-    if (startDateInput && endDateInput) {
-        const today = new Date();
-        const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-
-        endDateInput.value = today.toISOString().split('T')[0];
-        startDateInput.value = lastMonth.toISOString().split('T')[0];
-    }
-
-    // Alert helper function
-    window.showAlert = function(message, type = 'info') {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="close" data-dismiss="alert">
-                <span>&times;</span>
-            </button>
-        `;
-
-        const container = document.querySelector('.dashboard-content');
-        if (container) {
-            container.insertBefore(alertDiv, container.firstChild);
-
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                if (alertDiv && alertDiv.parentNode) {
-                    alertDiv.remove();
-                }
-            }, 5000);
-        }
-    }
-});
-
-// System access functions (keeping original functionality)
 let selectedSystem = null;
 let selectedAccount = null;
 
@@ -110,12 +42,20 @@ function getSystemName(system) {
 }
 
 function showAccountSelectionModal(data) {
-    document.getElementById('accountModalMessage').innerHTML = `
+    const modal = document.getElementById('accountSelectionModal');
+    const messageDiv = document.getElementById('accountModalMessage');
+    const accountOptions = document.getElementById('accountOptions');
+
+    if (!modal || !messageDiv || !accountOptions) {
+        console.error('Required modal elements not found');
+        return;
+    }
+
+    messageDiv.innerHTML = `
         <p><strong>${data.count}</strong> akun dengan nama mirip ditemukan di <strong>${getSystemName(selectedSystem)}</strong>.</p>
         <p class="mt-1">Pilih akun yang ingin digunakan:</p>
     `;
 
-    const accountOptions = document.getElementById('accountOptions');
     accountOptions.innerHTML = '';
 
     data.matches.forEach((account, index) => {
@@ -142,7 +82,7 @@ function showAccountSelectionModal(data) {
         accountOptions.appendChild(accountDiv);
     });
 
-    document.getElementById('accountSelectionModal').classList.remove('hidden');
+    modal.classList.remove('hidden');
 }
 
 function selectAccount(account, element) {
@@ -155,11 +95,17 @@ function selectAccount(account, element) {
     element.classList.add('bg-blue-50', 'border-blue-500');
 
     // Enable confirm button
-    document.getElementById('confirmAccountBtn').disabled = false;
+    const confirmBtn = document.getElementById('confirmAccountBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+    }
 }
 
 function closeAccountModal() {
-    document.getElementById('accountSelectionModal').classList.add('hidden');
+    const modal = document.getElementById('accountSelectionModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
     selectedSystem = null;
     selectedAccount = null;
 }
@@ -171,11 +117,14 @@ function confirmAccountSelection() {
     }
 
     // Show loading
-    document.getElementById('confirmAccountBtn').disabled = true;
-    document.getElementById('confirmAccountBtn').textContent = 'Menghubungkan...';
+    const confirmBtn = document.getElementById('confirmAccountBtn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Menghubungkan...';
+    }
 
     const formData = new FormData();
-    formData.append('sso_user_id', '{{ Auth::user()->id }}');
+    formData.append('sso_user_id', document.querySelector('meta[name="user-id"]')?.getAttribute('content') || '');
     formData.append('system_name', selectedSystem);
     formData.append('selected_user_id', selectedAccount.id);
     formData.append('selected_user_email', selectedAccount.email);
@@ -196,28 +145,40 @@ function confirmAccountSelection() {
             showFloatingLoading(getSystemName(selectedSystem), data.redirect_url);
         } else {
             showAlert('Error: ' + data.message, 'error');
-            document.getElementById('confirmAccountBtn').disabled = false;
-            document.getElementById('confirmAccountBtn').textContent = 'Lanjutkan';
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Lanjutkan';
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showAlert('Terjadi kesalahan. Silakan coba lagi.', 'error');
-        document.getElementById('confirmAccountBtn').disabled = false;
-        document.getElementById('confirmAccountBtn').textContent = 'Lanjutkan';
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Lanjutkan';
+        }
     });
 }
 
 // Floating Loading Modal
 function showFloatingLoading(systemName, redirectUrl) {
-    document.getElementById('loadingSystemName').textContent = systemName;
+    const modal = document.getElementById('floatingLoadingModal');
+    const loadingName = document.getElementById('loadingSystemName');
+    const progressBar = document.getElementById('loadingProgressBar');
+
+    if (!modal || !loadingName || !progressBar) {
+        console.error('Required floating modal elements not found');
+        return;
+    }
+
+    loadingName.textContent = systemName;
 
     // Show loading modal
-    const modal = document.getElementById('floatingLoadingModal');
     modal.classList.remove('hidden');
 
     // Animate progress bar
-    const progressBar = document.getElementById('loadingProgressBar');
+    progressBar.style.width = '0%';
 
     setTimeout(() => {
         progressBar.style.width = '50%';
@@ -243,4 +204,30 @@ function showFloatingLoading(systemName, redirectUrl) {
             progressBar.style.width = '0%';
         }
     }, 2000);
+}
+
+// Alert helper function
+function showAlert(message, type = 'info') {
+    // Remove existing alerts
+    const existingAlerts = document.querySelectorAll('.alert');
+    existingAlerts.forEach(alert => alert.remove());
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv && alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
 }

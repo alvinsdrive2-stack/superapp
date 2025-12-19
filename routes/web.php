@@ -78,6 +78,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/check-sso-name-exists', [UserManagementController::class, 'checkSSONameExists'])
             ->name('users.check.name');
 
+        // Modular Account Distribution Routes
+        Route::post('/sso-users/create-modular', [UserManagementController::class, 'createModularSSOUser'])
+            ->name('users.sso.create.modular');
+        Route::post('/sso-users/{id}/sync-systems', [UserManagementController::class, 'syncUserSystems'])
+            ->name('users.sso.sync.systems');
+        Route::get('/sso-users/{id}/system-access', [UserManagementController::class, 'getUserSystemAccess'])
+            ->name('users.sso.system.access');
+
         // User Mapping Routes
         Route::get('/user-mapping', [UserMappingController::class, 'index'])
             ->name('user.mapping');

@@ -361,10 +361,15 @@
         }
 
         .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            display: flex;
             gap: 1.5rem;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .kpi-grid .metric-card {
+            flex: 1;
+            min-width: 280px;
         }
 
         .main-chart-area {
@@ -2877,6 +2882,5 @@
                 }
             });
         }
-
             </script>
 </x-app-layout>
