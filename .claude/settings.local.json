@@ -9,7 +9,8 @@
       "Bash(php artisan serve:*)",
       "Bash(git pull:*)",
       "Bash(npm install:*)",
-      "Bash(php artisan tinker:*)"
+      "Bash(php artisan tinker:*)",
+      "Bash(php artisan view:clear:*)"
     ]
   }
 }

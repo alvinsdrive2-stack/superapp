@@ -451,7 +451,7 @@ class DashboardService
     }
 
     /**
-     * Get year vs year comparison data
+     * Get year vs year comparison data (for trend analysis)
      */
     public function getYearComparisonData($currentYear, $previousYear)
     {
@@ -459,38 +459,117 @@ class DashboardService
             $datasets = [];
             $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-            // Get data for current year from each database
-            $datasets['currentYear'] = [
-                'label' => (string)$currentYear,
-                'data' => $this->getYearlyDataFromDatabases($currentYear, $labels),
-                'borderColor' => '#667eea',
-                'backgroundColor' => 'rgba(102, 126, 234, 0.1)',
-                'borderWidth' => 3,
-                'fill' => true,
-                'tension' => 0.3
-            ];
+            // Get combined data for current year
+            $currentYearData = $this->getYearlyDataFromDatabases($currentYear, $labels);
 
-            // Get data for previous year from each database
-            $datasets['previousYear'] = [
-                'label' => (string)$previousYear,
-                'data' => $this->getYearlyDataFromDatabases($previousYear, $labels),
-                'borderColor' => '#f093fb',
-                'backgroundColor' => 'rgba(240, 147, 251, 0.1)',
-                'borderWidth' => 3,
-                'fill' => true,
-                'tension' => 0.3
+            // Get combined data for previous year
+            $previousYearData = $this->getYearlyDataFromDatabases($previousYear, $labels);
+
+            $datasets = [
+                [
+                    'label' => (string)$currentYear,
+                    'data' => $currentYearData,
+                    'borderColor' => '#667eea',
+                    'backgroundColor' => 'rgba(102, 126, 234, 0.1)',
+                    'borderWidth' => 3,
+                    'fill' => true,
+                    'tension' => 0.3
+                ],
+                [
+                    'label' => (string)$previousYear,
+                    'data' => $previousYearData,
+                    'borderColor' => '#f093fb',
+                    'backgroundColor' => 'rgba(240, 147, 251, 0.1)',
+                    'borderWidth' => 3,
+                    'fill' => true,
+                    'tension' => 0.3
+                ]
             ];
 
             return [
                 'success' => true,
                 'data' => [
                     'labels' => $labels,
-                    'datasets' => array_values($datasets)
+                    'datasets' => $datasets
                 ]
             ];
 
         } catch (Exception $e) {
             Log::error('Error getting year comparison data: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'data' => [
+                    'labels' => [],
+                    'datasets' => []
+                ]
+            ];
+        }
+    }
+
+    /**
+     * Get year vs year comparison data by database (for distribution chart)
+     */
+    public function getYearComparisonByDatabase($currentYear, $previousYear)
+    {
+        try {
+            $datasets = [];
+            $labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            // Get data for each database separately
+            $databases = [
+                'mysql_balai' => [
+                    'name' => 'Balai',
+                    'borderColor' => '#667eea',
+                    'backgroundColor' => 'rgba(102, 126, 234, 0.1)'
+                ],
+                'mysql_reguler' => [
+                    'name' => 'Reguler',
+                    'borderColor' => '#10b981',
+                    'backgroundColor' => 'rgba(16, 185, 129, 0.1)'
+                ],
+                'mysql_fg' => [
+                    'name' => 'FG',
+                    'borderColor' => '#f59e0b',
+                    'backgroundColor' => 'rgba(245, 158, 11, 0.1)'
+                ]
+            ];
+
+            foreach ($databases as $database => $config) {
+                // Current year data
+                $datasets[] = [
+                    'label' => $config['name'] . ' ' . $currentYear,
+                    'data' => $this->getYearlyDataFromSingleDatabase($database, $currentYear, $labels),
+                    'borderColor' => $config['borderColor'],
+                    'backgroundColor' => $config['backgroundColor'],
+                    'borderWidth' => 3,
+                    'fill' => true,
+                    'tension' => 0.3
+                ];
+
+                // Previous year data
+                $datasets[] = [
+                    'label' => $config['name'] . ' ' . $previousYear,
+                    'data' => $this->getYearlyDataFromSingleDatabase($database, $previousYear, $labels),
+                    'borderColor' => $config['borderColor'],
+                    'backgroundColor' => $config['backgroundColor'],
+                    'borderWidth' => 3,
+                    'fill' => true,
+                    'tension' => 0.3
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => [
+                    'labels' => $labels,
+                    'datasets' => $datasets
+                ]
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Error getting year comparison by database: ' . $e->getMessage());
 
             return [
                 'success' => false,
@@ -594,6 +673,42 @@ class DashboardService
     }
 
     /**
+     * Get yearly data from a single database
+     */
+    private function getYearlyDataFromSingleDatabase($database, $year, $labels)
+    {
+        $monthlyData = array_fill(0, count($labels), 0);
+
+        foreach ($labels as $index => $monthName) {
+            $month = Carbon::createFromFormat('M', $monthName)->month;
+            $monthlyData[$index] = $this->getMonthDataFromSingleDatabase($database, $year, $month);
+        }
+
+        return $monthlyData;
+    }
+
+    /**
+     * Get month data from a single database (for year comparison)
+     */
+    private function getMonthDataFromSingleDatabase($database, $year, $month)
+    {
+        try {
+            $tableName = $this->getTableNameForDatabase($database);
+            // Semua database menggunakan kolom tanggal_ditetapkan
+            $count = DB::connection($database)
+                ->table($tableName)
+                ->whereYear('tanggal_ditetapkan', $year)
+                ->whereMonth('tanggal_ditetapkan', $month)
+                ->count();
+
+            return $count;
+        } catch (Exception $e) {
+            Log::error("Error getting month data from {$database}: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
      * Get month data from all databases
      */
     private function getMonthDataFromDatabases($year, $month)
@@ -629,6 +744,22 @@ class DashboardService
         $tableName = $this->getTableNameForDatabase($database);
 
         try {
+            // Ensure $date is a Carbon instance
+            if (!$date instanceof \Carbon\Carbon) {
+                if (is_numeric($date)) {
+                    // If it's a timestamp, convert to Carbon
+                    $date = \Carbon\Carbon::createFromTimestamp($date);
+                } elseif (is_string($date)) {
+                    // If it's a string, try to parse it
+                    $date = \Carbon\Carbon::parse($date);
+                } else {
+                    // If it's year/month integers, create from them
+                    $year = $date['year'] ?? date('Y');
+                    $month = $date['month'] ?? date('m');
+                    $date = \Carbon\Carbon::createFromDate($year, $month, 1);
+                }
+            }
+
             // Semua database menggunakan kolom tanggal_ditetapkan
             $count = DB::connection($database)
                 ->table($tableName)
