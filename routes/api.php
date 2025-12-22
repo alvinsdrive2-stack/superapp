@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\API\SSOController;
 use App\Http\Controllers\API\DashboardController;
+use App\Http\Controllers\API\CachedDashboardController;
+use App\Http\Controllers\API\CompleteDashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,33 +40,55 @@ Route::post('/sso/verify/logout', [SSOController::class, 'logout'])
 
 // Dashboard API Routes
 Route::prefix('dashboard')->middleware(['throttle:60,1'])->group(function () {
-    // Comprehensive overview
-    Route::get('/overview', [DashboardController::class, 'overview']);
+    // Cached endpoints (use these for better performance)
+    Route::group(['controller' => CachedDashboardController::class], function () {
+        // Comprehensive overview
+        Route::get('/overview', 'overview');
 
-    // Total counts from all databases
-    Route::get('/totals', [DashboardController::class, 'totalCounts']);
+        // Total counts from all databases
+        Route::get('/totals', 'totalCounts');
 
-    // Time series data for charts
-    Route::get('/pencatatan-izin/time-series', [DashboardController::class, 'pencatatanIzinTimeSeries']);
-    Route::get('/pencatatan-izin/time-series-all', [DashboardController::class, 'pencatatanIzinTimeSeriesAll']);
-    Route::get('/chart-data', [DashboardController::class, 'chartData']);
+        // Time series data for charts
+        Route::get('/pencatatan-izin/time-series', 'pencatatanIzinTimeSeries');
+        Route::get('/chart-data', 'chartData');
 
-    // Comparison endpoints
-    Route::get('/pencatatan-izin/year-comparison', [DashboardController::class, 'yearComparison']);
-    Route::get('/pencatatan-izin/monthly-comparison', [DashboardController::class, 'monthlyComparison']);
+        // Comparison endpoints
+        Route::get('/pencatatan-izin/year-comparison', 'yearComparison');
+        Route::get('/pencatatan-izin/monthly-comparison', 'monthlyComparison');
 
-    // Province statistics
-    Route::get('/province-ranking', [DashboardController::class, 'provinceRanking']);
-    Route::get('/province-stats', [DashboardController::class, 'getProvinceStats']);
-    Route::get('/monthly-province-chart', [DashboardController::class, 'getMonthlyProvinceChart']);
+        // Province statistics
+        Route::get('/province-ranking', 'provinceRanking');
 
-    // Daily statistics
-    Route::get('/daily-stats', [DashboardController::class, 'dailyStats']);
+        // Daily statistics
+        Route::get('/daily-stats', 'dailyStats');
 
-    // Legacy endpoints (backward compatibility)
-    Route::get('/pencatatan-izin', [DashboardController::class, 'getPencatatanIzinData']);
-    Route::get('/pencatatan-izin/summary', [DashboardController::class, 'getPencatatanIzinSummary']);
+        // KPI metrics endpoint
+        Route::get('/kpis', 'getKPIs');
+    });
 
-    // Database connection testing
-    Route::get('/test-connections', [DashboardController::class, 'testConnections']);
+    // Cache management endpoints
+    Route::group(['controller' => CachedDashboardController::class], function () {
+        Route::get('/cache/clear', 'clearCache');
+        Route::get('/cache/stats', 'getCacheStats');
+    });
+
+    // Original endpoints (fallback and non-cached endpoints)
+    Route::group(['controller' => DashboardController::class], function () {
+        // Time series data (all data endpoint)
+        Route::get('/pencatatan-izin/time-series-all', 'pencatatanIzinTimeSeriesAll');
+
+        // Other province statistics
+        Route::get('/province-stats', 'getProvinceStats');
+        Route::get('/monthly-province-chart', 'getMonthlyProvinceChart');
+
+        // Legacy endpoints (backward compatibility)
+        Route::get('/pencatatan-izin', 'getPencatatanIzinData');
+        Route::get('/pencatatan-izin/summary', 'getPencatatanIzinSummary');
+
+        // Database connection testing
+        Route::get('/test-connections', 'testConnections');
+    });
+
+    // Complete dashboard data (single request endpoint)
+    Route::get('/complete', [CompleteDashboardController::class, 'getCompleteData']);
 });

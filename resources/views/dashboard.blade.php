@@ -588,11 +588,14 @@
                     <div class="metric-icon" style="background: var(--primary-gradient);">
                         <i class="fas fa-database text-white"></i>
                     </div>
-                    <div class="metric-value" data-metric="total-pencatatan">-</div>
+                    <div class="metric-value" data-metric="total_pencatatan">-</div>
                     <div class="text-gray-600 font-medium">Total Records</div>
-                    <div class="mt-4 flex items-center text-sm text-green-600">
+                    <div class="mt-2 text-xs text-gray-500">
+                        <span class="previous-year">-</span> → <span class="current-year">-</span>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-green-600">
                         <i class="fas fa-arrow-up mr-1"></i>
-                        <span>All Systems</span>
+                        <span class="change-percent">Loading...</span>
                     </div>
                 </div>
 
@@ -602,9 +605,12 @@
                     </div>
                     <div class="metric-value" data-metric="balai">-</div>
                     <div class="text-gray-600 font-medium">Balai System</div>
-                    <div class="mt-4 flex items-center text-sm text-blue-600">
+                    <div class="mt-2 text-xs text-gray-500">
+                        <span class="previous-year">-</span> → <span class="current-year">-</span>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-blue-600">
                         <i class="fas fa-circle mr-1"></i>
-                        <span>Active</span>
+                        <span class="change-percent">Loading...</span>
                     </div>
                 </div>
 
@@ -614,9 +620,12 @@
                     </div>
                     <div class="metric-value" data-metric="reguler">-</div>
                     <div class="text-gray-600 font-medium">Reguler System</div>
-                    <div class="mt-4 flex items-center text-sm text-green-600">
+                    <div class="mt-2 text-xs text-gray-500">
+                        <span class="previous-year">-</span> → <span class="current-year">-</span>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-green-600">
                         <i class="fas fa-circle mr-1"></i>
-                        <span>Active</span>
+                        <span class="change-percent">Loading...</span>
                     </div>
                 </div>
 
@@ -626,9 +635,12 @@
                     </div>
                     <div class="metric-value" data-metric="fg">-</div>
                     <div class="text-gray-600 font-medium">FG System</div>
-                    <div class="mt-4 flex items-center text-sm text-green-600">
+                    <div class="mt-2 text-xs text-gray-500">
+                        <span class="previous-year">-</span> → <span class="current-year">-</span>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-green-600">
                         <i class="fas fa-circle mr-1"></i>
-                        <span>Active</span>
+                        <span class="change-percent">Loading...</span>
                     </div>
                 </div>
             </div>
@@ -2882,5 +2894,117 @@
                 }
             });
         }
+
+        // Load KPI Data
+        async function loadKPIData() {
+            try {
+                const response = await fetch('/api/dashboard/kpis', {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    updateKPICards(result.data);
+                }
+            } catch (error) {
+                console.error('Error loading KPI data:', error);
+            }
+        }
+
+        // Update KPI cards with data
+        function updateKPICards(kpiMetrics) {
+            console.log('Updating KPI cards:', kpiMetrics);
+
+            const currentYear = new Date().getFullYear();
+            const previousYear = currentYear - 1;
+
+            // Update each KPI metric
+            Object.keys(kpiMetrics).forEach(metricKey => {
+                const metric = kpiMetrics[metricKey];
+                const element = document.querySelector(`[data-metric="${metricKey}"]`);
+
+                if (element) {
+                    // Update value with animation
+                    const targetValue = metric.current || 0;
+                    const startValue = parseInt(element.textContent.replace(/,/g, '')) || 0;
+
+                    // Animate the number
+                    animateKPIValue(element, startValue, targetValue);
+
+                    // Update year comparison display
+                    const metricCard = element.parentElement;
+                    const previousYearEl = metricCard.querySelector('.previous-year');
+                    const currentYearEl = metricCard.querySelector('.current-year');
+
+                    if (previousYearEl) {
+                        previousYearEl.textContent = `${previousYear}: ${metric.previous.toLocaleString('id-ID')}`;
+                    }
+
+                    if (currentYearEl) {
+                        currentYearEl.textContent = `${currentYear}: ${metric.current.toLocaleString('id-ID')}`;
+                    }
+
+                    // Update trend indicator
+                    const trendContainer = metricCard.querySelector('.flex.items-center');
+                    if (trendContainer) {
+                        const icon = trendContainer.querySelector('i');
+                        const text = trendContainer.querySelector('.change-percent');
+
+                        if (metric.change_type === 'increase') {
+                            icon.className = 'fas fa-arrow-up mr-1';
+                            text.textContent = `+${metric.change}% dari tahun lalu`;
+                            trendContainer.className = 'mt-2 flex items-center text-sm text-green-600';
+                        } else if (metric.change_type === 'decrease') {
+                            icon.className = 'fas fa-arrow-down mr-1';
+                            text.textContent = `${metric.change}% dari tahun lalu`;
+                            trendContainer.className = 'mt-2 flex items-center text-sm text-red-600';
+                        } else {
+                            icon.className = 'fas fa-minus mr-1';
+                            text.textContent = `${metric.change}% dari tahun lalu`;
+                            trendContainer.className = 'mt-2 flex items-center text-sm text-gray-600';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Animate KPI value
+        function animateKPIValue(element, start, end) {
+            const duration = 1000;
+            const startTime = performance.now();
+
+            const updateNumber = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+                const currentValue = Math.round(start + (end - start) * easeOutQuart);
+
+                element.textContent = currentValue.toLocaleString('id-ID');
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateNumber);
+                }
+            };
+
+            requestAnimationFrame(updateNumber);
+        }
+
+        // Load KPI data when page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                loadKPIData();
+            }, 1000); // Delay a bit to let main charts load first
+        });
+
             </script>
 </x-app-layout>

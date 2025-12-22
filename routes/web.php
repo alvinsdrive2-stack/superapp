@@ -31,6 +31,11 @@ Route::middleware('auth')->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
+    // Optimized dashboard route
+    Route::get('/dashboard-optimized', function () {
+        return view('dashboard-optimized');
+    })->name('dashboard.optimized');
+
     // Admin Routes
     Route::prefix('admin')->name('admin.')->middleware('role:admin,super_admin')->group(function () {
         Route::get('/database-analysis', [DatabaseAnalysisController::class, 'analyzeUsersTable'])
